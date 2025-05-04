@@ -1,19 +1,21 @@
-# **Spacetime ZET Dev Template \- Dev Container**
+# **Spacetime Rust Dev Template \- Dev Container**
+
+This directory contains the configuration for the project's development container, providing a consistent and reproducible environment for all contributors.
 
 ## **Development Environment Setup**
 
-This project utilizes **Dev Containers** ([spec](https://containers.dev/)) to ensure a consistent, reproducible, and isolated development environment. We use Podman within WSL2 and leverage Dev Container Features to package all necessary tools and configurations.
+This project utilizes **Dev Containers** ([spec](https://containers.dev/)) built using Podman within WSL2. Dev Container Features are leveraged to package necessary tools and configurations.
 
-**Workflow:** The primary workflow involves:
+**Workflow:** The primary workflow is:
 
 1. Using the **Dev Containers CLI** (devcontainer up) from your WSL2 terminal for initial setup and subsequent container starts/updates.  
-2. Connecting **VS Code** (running on Windows) to the running container using the Dev Containers: Attach to Running Container... command.
+2. Connecting **VS Code** (running on Windows) to the *already running* container using the Dev Containers: Attach to Running Container... command.
 
-This approach provides the most stable experience for permissions and SSH agent forwarding based on current testing with Podman on WSL2.
+This approach ensures stability for permissions and SSH agent forwarding with Podman on WSL2.
 
 ### **Included Features & Tools**
 
-The dev container comes pre-configured with the following tools, installed primarily via Dev Container Features:
+The dev container comes pre-configured with the following tools:
 
 \# Base & Shell  
 \- Ubuntu 24.04  
@@ -28,7 +30,7 @@ The dev container comes pre-configured with the following tools, installed prima
 \- TypeScript
 
 \# SpacetimeDB  
-\- spacetime CLI (installed via post-create script)
+\- spacetime CLI (installed via post-create script using expect)
 
 \# Cloud Native / K8s  
 \- kubectl  
@@ -46,6 +48,8 @@ The dev container comes pre-configured with the following tools, installed prima
 
 \# Utilities  
 \- socat (for SSH agent forwarding robustness)  
+\- jq & htop (general utilities)  
+\- expect (for automating spacetime install)  
 \- jless (JSON viewer, installed via cargo)  
 \- Modern Shell Utils (eza, bat, fd, ripgrep)
 
@@ -67,7 +71,10 @@ Ensure the following are installed and configured **before** running the setup:
    * Start with Podman: minikube start \--driver=podman \--container-runtime=cri-o.  
 6. **VS Code:** Install [Visual Studio Code](https://code.visualstudio.com/) on **Windows**.  
 7. **VS Code Dev Containers Extension:** Install from the Marketplace (ms-vscode-remote.remote-containers).  
-8. **Git:** Install Git within WSL2 (sudo apt update && sudo apt install git).  
+8. **Git:** Install Git within WSL2 (sudo apt update && sudo apt install git). 
+   * *(Note: Ensure your GitHub SSH key is set up in WSL2. If you use a different SSH key, ensure it's added to your SSH agent.)*
+   * **SSH Key:** If you don't have an SSH key, generate one using ssh-keygen -t rsa -b 4096 -C
+   * **Add SSH Key to GitHub:** Follow [GitHub's guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account) to add your SSH key to your GitHub account.
 9. **SSH Agent on WSL (Crucial):**  
    * **Requirement:** A running SSH agent with your GitHub key added is needed *in the terminal session where you run devcontainer up*. The container explicitly mounts the agent's socket path defined by the $SSH\_AUTH\_SOCK environment variable.  
    * **Action:** *Before each devcontainer up command*, ensure your agent is running and the key is added in that specific terminal:  
@@ -101,10 +108,10 @@ Ensure the following are installed and configured **before** running the setup:
      * Execute onCreateCommand and postCreateCommand (.devcontainer/post-create.sh).  
    * Monitor the terminal output. A successful run ends with {"outcome":"success", ...}. Redirect output if needed: devcontainer up ... \> \~/devcontainer-build.log 2\>&1.  
 4. **Connect VS Code:**  
-   * Open VS Code.  
+   * Open VS Code on Windows.  
    * Open the Command Palette (Ctrl+Shift+P).  
    * Run **Dev Containers: Attach to Running Container...**.  
-   * Select the container associated with this project (e.g., vsc-spacetime-zet-dev-template-...).  
+   * Select the container associated with this project (e.g., vsc-stdb-rust-dc-...).  
    * VS Code will connect its UI to the running container. The status bar should turn green.  
 5. **First-Time Setup Inside Container:**  
    * **Git Identity:** The post-create.sh script attempts to read GIT\_AUTHOR\_NAME and GIT\_AUTHOR\_EMAIL from your host environment (pass them when running devcontainer up if needed, e.g., GIT\_AUTHOR\_NAME="Your Name" devcontainer up ...). If not set, it will print instructions. Run these commands in the VS Code terminal *inside the container* if prompted:  
@@ -116,16 +123,18 @@ Ensure the following are installed and configured **before** running the setup:
 ### **Dev Container Configuration Explained**
 
 * **.devcontainer/devcontainer.json:** Defines the environment using a base image and Dev Container Features. It explicitly mounts the Podman and SSH agent sockets from the host (${env:SSH\_AUTH\_SOCK}). It configures VS Code settings and extensions specific to the container.  
-* **.devcontainer/post-create.sh:** Runs once after container creation. It installs the spacetime CLI and jless, configures Zsh (theme, plugins, persistent history via volume mount), sets Git safe directory/aliases/template, and installs Python requirements.
+* **.devcontainer/post-create.sh:** Runs once after container creation. It installs expect, jq, htop, the spacetime CLI (using the expect script), and jless. It configures Zsh (theme, plugins, persistent history via volume mount), sets Git safe directory/aliases/template, and installs Python requirements from requirements.txt.  
+* **.devcontainer/install\_spacetime.exp:** An expect script used by post-create.sh to automate the interactive prompt during the SpacetimeDB CLI installation.
 
 ### **Troubleshooting & Known Issues**
 
 * **devcontainer up Fails:**  
-  * **Error: host directory cannot be empty (for SSH mount):** The $SSH\_AUTH\_SOCK variable was likely empty on your host when devcontainer up was run. Ensure the SSH agent is running and the variable is set in your terminal (see Prerequisites step 9).  
-  * Check terminal output for other errors (feature install, script errors). Ensure Podman socket is running. Check network connectivity.  
+  * **Error: host directory cannot be empty (for SSH mount):** The $SSH\_AUTH\_SOCK variable was likely empty on your host when devcontainer up was run. Ensure the SSH agent is running and the variable is set in your terminal (see Prerequisites step 9). Re-run eval $(ssh-agent \-s) and ssh-add ... in that terminal before trying devcontainer up again.  
+  * **Errors during post-create.sh:** Check the script output for failures (e.g., apt install failed, expect script failed, cargo install failed). Ensure network connectivity.  
+  * Check feature installation logs for errors.  
 * **Cannot Attach VS Code:** Ensure the container is running (podman ps). Check the devcontainer up logs for errors during startup.  
 * **SSH Fails Inside Container (Permission denied (publickey)):**  
-  * Verify SSH Agent was running on host *before* devcontainer up and $SSH\_AUTH\_SOCK was set.  
+  * Verify SSH Agent was running on host *before* devcontainer up and $SSH\_AUTH\_SOCK was set correctly in that terminal session.  
   * Inside container: Check echo $SSH\_AUTH\_SOCK (should be /ssh-agent). Check ls \-l /ssh-agent. Test ssh \-T git@github.com.  
 * **Container Fails to podman start After Host Reboot:**  
   * **Cause:** The explicit SSH agent socket mount (source=${env:SSH\_AUTH\_SOCK}) uses a path that likely became invalid after reboot.  
@@ -133,3 +142,7 @@ Ensure the following are installed and configured **before** running the setup:
   * *(Solution: Investigating persistent SSH socket solutions like keychain)*.  
 * **Git Identity Prompt:** If GIT\_AUTHOR\_NAME/EMAIL aren't passed from the host, post-create.sh will prompt you to set them manually inside the container.  
 * **Zsh Theme Looks Wrong:** Install a Powerline/Nerd Font on the host and configure VS Code's terminal.integrated.fontFamily.
+
+### **License**
+
+This Dev Container configuration is licensed under the GNU General Public License v3.0. See the LICENSE file in the project root.
