@@ -1,0 +1,52 @@
+#!/usr/bin/expect -f
+# This script automates the SpacetimeDB CLI installation prompt
+# by running the pre-downloaded installer script.
+
+# Set a timeout (e.g., 5 minutes) in case something goes wrong
+set timeout 300
+
+# Command to run (execute the downloaded installer script)
+# IMPORTANT: The script path is hardcoded here, matching post-create.sh
+# Updated cmd based on user's working version - directly pipe curl to sh
+set cmd "curl -sSf https://install.spacetimedb.com | sh"
+
+# Spawn the command using bash -c to handle potential sudo password prompts
+# (though ideally sudo is configured passwordless for the vscode user)
+spawn bash -c $cmd
+# export expect_string="*Would you like to continue? \[Y/n]*"
+# Use a simpler glob pattern that worked for the user
+set expect_string "*Y/n*"
+puts "Running command: $cmd"
+puts "Expecting string: $expect_string"
+# export expected string and check it "*Would you like to continue? \[Y/n]*"
+# Wait for the command to output the expected string
+expect {
+  # If the expected string appears, continue
+  $expect_string {
+    # Use Y to confirm
+    send "Y\r"
+    # Continue waiting for the command to finish
+  }
+  # If the command fails or times out, handle it
+  timeout {
+    puts "Error: Command timed out."
+    exit 1
+  }
+  eof {
+    # This might happen if the script finishes *before* the prompt,
+    # meaning it didn't actually prompt (e.g., already installed).
+    # Or if it failed before prompting. Check exit status below if needed.
+    puts "Command exited before prompt or failed."
+    # Consider exiting 0 here if finishing before prompt is okay
+    # exit 0
+  }
+}
+
+# Wait for the command to finish (expect end-of-file)
+expect eof
+
+# Optional: Check exit status if needed (more complex)
+# catch wait result
+# set exit_status [lindex $result 3]
+# puts "Command exited with status $exit_status"
+# exit $exit_status

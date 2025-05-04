@@ -1,0 +1,7 @@
+
+{
+    "dev.containers.dockerPath": "podman",
+    "docker.composeCommand": "podman-compose", // <- VS Code will call podman-compose
+    "docker.dockerPath": "podman",
+
+}

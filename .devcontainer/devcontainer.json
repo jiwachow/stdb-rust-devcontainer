@@ -1,0 +1,346 @@
+// devcontainer.json Reference: https://containers.dev/implementors/json_reference/
+{
+	// "name": A human-readable name for this specific Dev Container configuration.
+	// This name appears in IDEs like VS Code when selecting which configuration to use.
+	"name": "Spacetime ZET Dev Template (Zsh + Node + TS Features)",
+
+	// "image": Specifies the base container image to build upon.
+	// We use a standard Ubuntu 24.04 image provided by Microsoft for Dev Containers.
+	// It's a good starting point because it's widely used and well-supported.
+	// Dev Container Features (defined below) will install tools ON TOP of this base image.
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+
+	// --- Features ---
+	// "features": These are modular units that add specific tools, runtimes, or configurations
+	// to the base image, making setup easier and more standardized.
+	// Reference: https://containers.dev/features
+	"features": {
+		// "ghcr.io/devcontainers/features/common-utils": Installs essential command-line utilities
+		// needed for many development tasks (like git, curl, sudo, openssh-client).
+		// It also handles creating the non-root user ('vscode') inside the container.
+		"ghcr.io/devcontainers/features/common-utils": {
+			"installZsh": "true", // Install the Z Shell (Zsh).
+			"configureZshAsDefaultShell": "true", // Set Zsh as the default login shell for the 'vscode' user.
+			"installOhMyZsh": "true", // Install the "Oh My Zsh" framework for managing Zsh configuration (themes, plugins).
+			"upgradePackages": "true", // Run 'apt-get upgrade' during feature installation to ensure packages are up-to-date.
+			// Setup the primary non-root user for development inside the container.
+			"username": "vscode", // The name of the user to create. 'vscode' is a common convention.
+			// Set the User ID (UID) and Group ID (GID) for the 'vscode' user.
+			// We set these to 1000 to EXACTLY MATCH the default UID/GID of the first user
+			// created in most Linux distributions, including the user ('zet') on the WSL2 host.
+			// Matching UIDs/GIDs is critical for avoiding file permission issues when mounting
+			// the local workspace into the container (see 'updateRemoteUserUID' below).
+			"userUid": 1000,
+			"userGid": 1000
+		},
+		// "ghcr.io/devcontainers/features/rust:1": Installs the Rust programming language toolchain.
+		"ghcr.io/devcontainers/features/rust:1": {
+			"version": "latest", // Install the latest stable version of Rust. Pin to a specific version (e.g., "1.70") for stricter reproducibility.
+			"profile": "default" // Use the 'default' rustup profile, which includes standard tools like 'cargo', 'rustc', and 'clippy'.
+		},
+		// "ghcr.io/devcontainers/features/python:1": Installs the Python interpreter and pip.
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "3.11" // Specify the desired Python version for the project.
+			// "installTools": true // Optionally, set to true to automatically install common Python tools like pylint, flake8, autopep8.
+		},
+		// Installs Node.js, npm, and optionally nvm.
+		"ghcr.io/devcontainers/features/node": {
+			"version": "lts", // Install the latest Long-Term Support version of Node.js
+			"nodeGypDependencies": true // Install dependencies needed for native Node modules (good practice)
+			// "nvmVersion": "latest" // Optionally install Node Version Manager (nvm)
+		},
+		// Installs TypeScript (tsc) globally via npm.
+		"ghcr.io/devcontainers-extra/features/typescript:2": {
+			"version": "latest" // Or pin to a specific TypeScript version
+		},
+		// "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": Installs Kubernetes and Helm command-line tools.
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+			"kubectl": "latest", // Install the latest version of kubectl (Kubernetes CLI).
+			"helm": "latest", // Install the latest version of Helm (Kubernetes package manager).
+			"minikube": "none" // Do NOT install Minikube inside the dev container. Minikube runs directly on the WSL2 host.
+		},
+		// "ghcr.io/devcontainers/features/github-cli:1": Installs the GitHub CLI ('gh').
+		"ghcr.io/devcontainers/features/github-cli:1": {}, // Use default options.
+		// "ghcr.io/devcontainers-extra/features/podman-homebrew:1": Installs the Podman CLI tools.
+		// This is necessary for the dev container to interact with the Podman service/daemon
+		// running on the WSL2 host (via the mounted socket, see 'mounts' below).
+		// This specific feature uses Homebrew under the hood for installation.
+		"ghcr.io/devcontainers-extra/features/podman-homebrew:1": {
+			"installDockerBuildx": "true" // Include buildx support if needed for advanced image building via Podman.
+		},
+		"ghcr.io/roul/devcontainer-features/mise:1": {}, // Installs mise CLI for managing local dev environments	
+		"ghcr.io/roul/devcontainer-features/vault:1": {},
+		"ghcr.io/devcontainers-community/features/bazel:1": { // Installs Bazel build tool
+			"version": "latest"
+		},
+		"ghcr.io/audacioustux/devcontainers/tilt:1": {}, // Installs Tilt
+		"ghcr.io/devcontainers-extra/features/argo-cd:1": {}, // Installs ArgoCD CLI
+		"ghcr.io/devcontainers-extra/features/pre-commit:2": {}, // Installs pre-commit framework
+
+		// --- Utilities ---
+		"ghcr.io/mikaello/devcontainer-features/modern-shell-utils:2": {}, // eza, bat, fd, ripgrep
+
+		// --- Notes on Other Tools ---
+		// Tools like Bazel, Tilt, ArgoCD CLI, SpacetimeDB CLI were in the original Dockerfile.
+		// If they are not provided by the base image or the features above, they need to be:
+		// 1. Added via dedicated Dev Container Features (if available). Search on https://containers.dev/features.
+		// 2. Installed manually using `onCreateCommand` (for prerequisites) or `postCreateCommand` (for main tools).
+		// Using features is generally preferred for better encapsulation and caching.
+	},
+
+	// --- User Configuration ---
+	// "remoteUser": Specifies the username that VS Code and its processes (terminals, debuggers)
+	// should run as inside the container. This should match the user created by common-utils.
+	"remoteUser": "vscode",
+
+	// "updateRemoteUserUID": Controls whether the Dev Containers tooling should attempt to
+	// modify the UID/GID of the 'remoteUser' inside the container to match the host user's UID/GID.
+	// **IMPORTANT:** We set this to `false`. Why? Because we explicitly configured the 'vscode' user
+	// in the 'common-utils' feature to have UID/GID 1000, which already matches the host 'zet' user.
+	// Setting this to `false` prevents the tooling from unnecessarily trying (and potentially failing)
+	// to change the UID/GID, which helps ensure file permissions work correctly for the mounted workspace.
+	"updateRemoteUserUID": false,
+
+	// --- Workspace Mount Configuration ---
+	// These settings control how your local project code (the folder containing this .devcontainer directory)
+	// is made available inside the container.
+
+	// "workspaceMount": Defines the specific mount details.
+	// - "source=${localWorkspaceFolder}": The source on the host machine is the folder you opened in VS Code.
+	// - "target=/workspaces/spacetime-zet-dev-template": The destination path inside the container where the code will appear.
+	//   '/workspaces' is a standard convention, and the subfolder matches the project name.
+	// - "type=bind": Use a bind mount, which directly mirrors the host folder into the container.
+	// - "consistency=cached": (Optional) Can improve performance on macOS/Windows by caching; less impactful but harmless on WSL2.
+	// - ",U": **CRITICAL for Podman & Permissions**. This flag tells Podman (or Docker) to adjust the
+	//   ownership of the mounted files *within the container's user namespace* to match the container
+	//   user ('vscode', UID 1000). It does NOT change ownership on the host ('zet', UID 1000).
+	//   This is often the key to resolving permission denied errors when host and container UIDs match.
+	"workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/spacetime-zet-dev-template,type=bind,consistency=cached",
+
+	// "workspaceFolder": Sets the default directory that VS Code will open *inside* the container.
+	// This should match the 'target' path of the workspace mount.
+	"workspaceFolder": "/workspaces/spacetime-zet-dev-template",
+
+	// --- Lifecycle Hooks ---
+	// These commands run at specific points during the container's setup and startup process.
+	// Reference: https://containers.dev/implementors/json_reference/#lifecycle-scripts
+
+	// "onCreateCommand": Runs once when the container is first created, *after* features are installed,
+	// but *before* `postCreateCommand`. Useful for installing small prerequisites needed by later scripts.
+	// We install 'socat' here, which is sometimes needed for robust SSH agent forwarding.
+	"onCreateCommand": "sudo apt-get update && sudo apt-get install -y -qq socat libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev && echo 'socat and xcb deps installed.'",
+
+	// "postCreateCommand": Runs once after `onCreateCommand` when the container is first created.
+	// This is the main place for project-specific setup, configuration, and verification
+	// that depends on the tools installed by the features.
+	// We execute our custom setup script using 'bash' explicitly. Why 'bash'? Because the script file
+	// itself might not have execute permissions due to how the filesystem is mounted, but the 'bash'
+	// interpreter can still read and execute its contents.
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+
+	// --- Port Forwarding ---
+	// "forwardPorts": A list of ports inside the container that should be made accessible
+	// on the host machine (localhost). This allows you to access services running inside
+	// the container (like web servers, databases) from your host browser or tools.
+	"forwardPorts": [
+		3000, // SpacetimeDB default client port
+		8080, // Common web app port (e.g., ArgoCD UI if proxied, or a local web server)
+		8888, // Keycloak default HTTP port (if running Keycloak locally)
+		5432, // PostgreSQL default port (if running Postgres locally)
+		10350, // Tilt Web UI default port (if running Tilt)
+		9229 // Standard Node.js debug port
+		// Add other ports your services might use
+	],
+	// "portsAttributes": (Optional) Allows customizing how forwarded ports behave (e.g., labels in UI, auto-open browser).
+	// "portsAttributes": {
+	// 	"3000": { "label": "SpacetimeDB Client" },
+	// 	"8080": { "label": "Web App / ArgoCD", "onAutoForward": "openPreview" } // Example: Auto-open in VS Code simple browser
+	// },
+
+	// --- Mounts ---
+	// "mounts": Defines additional volumes or bind mounts beyond the workspace.
+	"mounts": [
+		// **Podman Socket Mount:**
+		// Mounts the Podman control socket from the WSL2 host into the container.
+		// - "source=${env:XDG_RUNTIME_DIR}/podman/podman.sock": Path to the socket on the WSL host.
+		//   `${env:XDG_RUNTIME_DIR}` usually resolves correctly to `/run/user/1000`. Using the env var is more robust.
+		// - "target=/var/run/podman/podman.sock": Standard path inside the container for the socket.
+		// - "type=bind": Use a bind mount.
+		// This allows the Podman CLI *inside* the container (installed by the feature) to talk to the Podman service *outside*.
+		"source=${env:XDG_RUNTIME_DIR}/podman/podman.sock,target=/var/run/podman/podman.sock,type=bind,consistency=cached",
+
+		// **SSH Agent Socket Mount:**
+		// Explicitly mounts the SSH agent socket from the WSL2 host into the container.
+		// - "source=${env:SSH_AUTH_SOCK}": Path to the active agent socket on the host (MUST be set before starting container).
+		// - "target=/tmp/ssh-agent.sock": A conventional location inside the container for the mounted socket.
+		// - "type=bind": Use a bind mount.
+		// This provides a direct, reliable way for tools inside the container (like git) to use your host's SSH keys
+		// for authentication, bypassing potential issues with automatic forwarding detection.
+				// *** REMOVED explicit SSH agent socket mount - Relying on built-in forwarding ***
+		"source=${env:SSH_AUTH_SOCK},target=/ssh-agent,type=bind,consistency=cached",
+
+		// **Persistent History Volume Mount:**
+		// Creates/uses a named Docker/Podman volume to store shell history.
+		// - "source=zet-dev-zshhistory": The name of the volume. If it doesn't exist, it will be created.
+		// - "target=/home/vscode/commandhistory": The path inside the container where the volume will be mounted.
+		// - "type=volume": Specifies that this is a managed volume, not a direct host path bind mount.
+		// This ensures your Zsh command history persists even if the container is rebuilt.
+		"source=zet-dev-zshhistory,target=/home/vscode/commandhistory,type=volume"
+
+		// --- Optional Mounts (Examples) ---
+		// Uncomment and adapt these if needed:
+		// Mount Kubernetes config: Allows kubectl inside the container to access host cluster contexts.
+		// "source=${localEnv:HOME}/.kube,target=/home/vscode/.kube,type=bind,consistency=cached",
+		// Mount AWS credentials:
+		// "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind,consistency=cached",
+		// Mount Azure credentials:
+		// "source=${localEnv:HOME}/.azure,target=/home/vscode/.azure,type=bind,consistency=cached",
+		// Mount Google Cloud credentials:
+		// "source=${localEnv:HOME}/.config/gcloud,target=/home/vscode/.config/gcloud,type=bind,consistency=cached"
+	],
+
+	// --- Environment Variables ---
+	// Set environment variables available inside the container.
+	"containerEnv": {
+		// Pass Git Author info from host environment variables into the container environment.
+		// The post-create script will read these container env vars.
+		// Requires GIT_AUTHOR_NAME and GIT_AUTHOR_EMAIL to be set on the HOST (WSL).
+		"GIT_AUTHOR_NAME": "${localEnv:GIT_AUTHOR_NAME}",
+		"GIT_AUTHOR_EMAIL": "${localEnv:GIT_AUTHOR_EMAIL}"
+		// Add other container-wide env vars here if needed.
+	},
+	// "remoteEnv": Sets environment variables specifically for processes launched by VS Code
+	// (like terminals and the extension host), not necessarily for the container globally.
+	"remoteEnv": {
+		// **SSH Agent Socket Variable:**
+		// Tells applications inside the container (like git, ssh) where to find the
+		// SSH agent socket that we explicitly mounted in the 'mounts' section.
+		"SSH_AUTH_SOCK": "/ssh-agent"
+		// Add other environment variables needed only by VS Code or terminal sessions here.
+		// Example: "MY_TOOL_CONFIG_PATH": "${containerWorkspaceFolder}/.config/mytool"
+	},
+
+	// --- VS Code Customizations ---
+	// "customizations": A namespace for tool-specific settings.
+	"customizations": {
+		// "vscode": Contains settings and extensions specifically for Visual Studio Code.
+		"vscode": {
+			// "settings": Defines default VS Code settings to be applied within the Dev Container.
+			// These override user/workspace settings but only *inside* the container.
+			"settings": {
+				// Rust Analyzer (LSP for Rust) settings
+				"rust-analyzer.check.command": "clippy", // Run clippy on save (implicitly enabled by setting command)
+				"rust-analyzer.linkedProjects": [ "./server/Cargo.toml" ], // Tell rust-analyzer where the main Rust project manifest is. Adjust path if needed.
+
+				// Python settings (ensure Python feature is enabled)
+				"python.defaultInterpreterPath": "/usr/local/python/current/bin/python", // Point VS Code to the Python interpreter installed by the feature.
+				"python.analysis.autoImportCompletions": true, // Enable auto-import suggestions.
+				"python.analysis.typeCheckingMode": "basic", // Enable basic type checking.
+				"[python]": { // Language-specific settings for Python files
+					"editor.formatOnSave": true, // Automatically format Python code on save.
+					"editor.codeActionsOnSave": { "source.organizeImports": "explicit" }, // Automatically organize imports on save.
+					"editor.defaultFormatter": "ms-python.autopep8" // Use autopep8 as the formatter (requires extension & pip install).
+				},
+
+				// Terminal settings
+				"terminal.integrated.defaultProfile.linux": "zsh", // Make Zsh the default shell opened in VS Code's integrated terminal.
+				"terminal.integrated.profiles.linux": {
+					// Define available shell profiles for the terminal dropdown.
+					"bash": { "path": "bash", "icon": "terminal-bash" }, // Bash profile
+					"zsh": { "path": "zsh" } // Zsh profile (path is found automatically since it's the default shell)
+				},
+
+				// YAML settings
+				"yaml.format.enable": true, // Enable auto-formatting for YAML files.
+				"yaml.validate": true, // Enable schema validation for YAML (useful for K8s manifests).
+
+				// Docker/Podman extension settings (requires 'ms-azuretools.vscode-docker' extension)
+				// Tell the VS Code Docker extension to use the 'podman' command instead of 'docker'.
+				"docker.dockerPath": "/opt/homebrew/bin/podman", // Path where the podman-homebrew feature installs podman.
+				// Tell the extension to connect to the Podman socket mounted from the host.
+				"docker.host": "unix:///var/run/podman/podman.sock",
+
+				// Font setting for Powerline themes (like Agnoster used in post-create.sh)
+				// **IMPORTANT**: The user needs to have this specific font installed on their HOST machine
+				// (Windows/WSL) for the special characters (like arrows, git symbols) to render correctly.
+				// Examples: "MesloLGS NF", "Fira Code", "Cascadia Code PL", "Hack Nerd Font".
+				// This setting can also be configured in the user's global VS Code settings instead.
+				"terminal.integrated.fontFamily": "MesloLGS NF",
+				"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+				"editor.codeActionsOnSave": {
+					"source.fixAll.eslint": "explicit" // Run ESLint fix on save
+				},
+				"[typescript]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode" // Use Prettier for TS
+				},
+				"[typescriptreact]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode" // Use Prettier for TSX
+				},
+				"[javascript]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode" // Use Prettier for JS
+				},
+				"[json]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode" // Use Prettier for JSON
+				},
+				"[jsonc]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode" // Use Prettier for JSONC
+				}				
+			},
+			// "extensions": A list of VS Code extension IDs to automatically install inside the Dev Container.
+			"extensions": [
+				// Core Languages & Frameworks
+				"rust-lang.rust-analyzer", // Rust language server
+				"ms-python.python", // Base Python support
+				"ms-python.vscode-pylance", // Enhanced Python IntelliSense (optional but recommended)
+				"ms-python.autopep8", // Python formatter used in settings
+				"dbaeumer.vscode-eslint", // ESLint integration
+				"esbenp.prettier-vscode", // Prettier code formatter
+
+				// Container & Cloud Native Tools
+				"ms-azuretools.vscode-docker", // Docker & Podman integration
+				"ms-kubernetes-tools.vscode-kubernetes-tools", // Kubernetes & Helm support
+
+				// Version Control & Collaboration
+				"github.vscode-github-actions", // View GitHub Actions workflows
+				"github.copilot", // AI pair programmer
+				"github.copilot-chat", // AI chat interface
+				"eamodio.gitlens", // Powerful Git history and blame annotations
+				"mhutchie.git-graph", // Visualize Git history graph
+
+				// Utilities & Formatting
+				"tamasfe.even-better-toml", // TOML language support (for Cargo.toml etc.)
+				"redhat.vscode-yaml", // YAML language support (for K8s, etc.)
+				"mutantdino.resourcemonitor" // Optional: Show CPU/RAM usage in status bar
+
+				// Add other extensions as needed for your workflow
+				// "bazelbuild.vscode-bazel" // Example: Add if using Bazel
+			]
+		}
+	},
+	// "postAttachCommand": {
+	// 	"server": "gh auth status || gh auth login --hostname github.com --git-protocol https --web"
+	// 	// Explanation:
+	// 	// - `gh auth status`: Checks if already logged in. If it exits successfully (status 0), the command ends.
+	// 	// - `||`: If `gh auth status` fails (non-zero exit status), run the next command.
+	// 	// - `gh auth login ...`: Initiates the GitHub CLI login process.
+	// 	//   - `--hostname github.com`: Specifies the GitHub instance.
+	// 	//   - `--git-protocol https`: Often preferred within containers unless SSH is specifically needed *by gh*. Git commands will still try SSH first if configured.
+	// 	//   - `--web`: Opens a browser on your host for authentication.
+	// 	// Note: You might need to install `gh` via a feature if not already present:
+	// 	// "features": {
+	// 	//   "ghcr.io/devcontainers/features/github-cli:1": {}
+	// 	// }
+	// },
+	// --- Other Settings ---
+	// "shutdownAction": Determines what happens to the container when you close VS Code.
+	// "none": Keep the container running in the background. Useful if the initial connection
+	// sometimes fails and requires reopening VS Code to connect to the running container.
+	// "stopContainer": Stop the container when VS Code closes (default for image/Dockerfile).
+	// "stopCompose": Stop the Docker Compose stack (default for docker-compose.yml).
+	"shutdownAction": "none"
+
+	// Uncomment the next line to connect as the 'root' user instead of 'vscode'.
+	// Note: Running as root is generally discouraged for security reasons.
+	// "remoteUser": "root"
+}
