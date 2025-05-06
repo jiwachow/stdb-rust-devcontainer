@@ -170,16 +170,6 @@
 		// This allows the Podman CLI *inside* the container (installed by the feature) to talk to the Podman service *outside*.
 		"source=${env:XDG_RUNTIME_DIR}/podman/podman.sock,target=/var/run/podman/podman.sock,type=bind,consistency=cached",
 
-		// **SSH Agent Socket Mount:**
-		// Explicitly mounts the SSH agent socket from the WSL2 host into the container.
-		// - "source=${env:SSH_AUTH_SOCK}": Path to the active agent socket on the host (MUST be set before starting container).
-		// - "target=/tmp/ssh-agent.sock": A conventional location inside the container for the mounted socket.
-		// - "type=bind": Use a bind mount.
-		// This provides a direct, reliable way for tools inside the container (like git) to use your host's SSH keys
-		// for authentication, bypassing potential issues with automatic forwarding detection.
-				// *** REMOVED explicit SSH agent socket mount - Relying on built-in forwarding ***
-		"source=${env:SSH_AUTH_SOCK},target=/ssh-agent,type=bind,consistency=cached",
-
 		// **Persistent History Volume Mount:**
 		// Creates/uses a named Docker/Podman volume to store shell history.
 		// - "source=zet-dev-zshhistory": The name of the volume. If it doesn't exist, it will be created.
@@ -212,14 +202,14 @@
 	},
 	// "remoteEnv": Sets environment variables specifically for processes launched by VS Code
 	// (like terminals and the extension host), not necessarily for the container globally.
-	"remoteEnv": {
-		// **SSH Agent Socket Variable:**
-		// Tells applications inside the container (like git, ssh) where to find the
-		// SSH agent socket that we explicitly mounted in the 'mounts' section.
-		"SSH_AUTH_SOCK": "/ssh-agent"
-		// Add other environment variables needed only by VS Code or terminal sessions here.
-		// Example: "MY_TOOL_CONFIG_PATH": "${containerWorkspaceFolder}/.config/mytool"
-	},
+	// "remoteEnv": {
+	// 	// **SSH Agent Socket Variable:**
+	// 	// Tells applications inside the container (like git, ssh) where to find the
+	// 	// SSH agent socket that we explicitly mounted in the 'mounts' section.
+	// 	"SSH_AUTH_SOCK": "/ssh-agent"
+	// 	// Add other environment variables needed only by VS Code or terminal sessions here.
+	// 	// Example: "MY_TOOL_CONFIG_PATH": "${containerWorkspaceFolder}/.config/mytool"
+	// },
 
 	// --- VS Code Customizations ---
 	// "customizations": A namespace for tool-specific settings.
@@ -311,10 +301,12 @@
 				// Utilities & Formatting
 				"tamasfe.even-better-toml", // TOML language support (for Cargo.toml etc.)
 				"redhat.vscode-yaml", // YAML language support (for K8s, etc.)
-				"mutantdino.resourcemonitor" // Optional: Show CPU/RAM usage in status bar
-
+				"mutantdino.resourcemonitor", // Optional: Show CPU/RAM usage in status bar
+				"mhutchie.git-graph", // Visualize Git history graph
+				// shell formatters
+				"foxundermoon.shell-format", // Shell script formatter
 				// Add other extensions as needed for your workflow
-				// "bazelbuild.vscode-bazel" // Example: Add if using Bazel
+				"bazelbuild.vscode-bazel" // Example: Add if using Bazel
 			]
 		}
 	},
